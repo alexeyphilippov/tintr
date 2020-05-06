@@ -4,3 +4,5 @@ __pycache__
 **.sqlite
 env/
 logs.txt
+data
+**.csv
