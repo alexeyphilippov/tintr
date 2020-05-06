@@ -1,9 +1,8 @@
-import os
 import json
 import requests
-from datetime import datetime
 
-DATA_DIR = "./data"
+from utils.logger import log
+
 url = "https://api.tinkoff.ru/v1/currency_rates"
 
 
@@ -17,26 +16,35 @@ def get_last_ones():
             DebitCardsTransfers.append(x)
 
     res = {}
-    for el in DebitCardsTransfers:
-        if el['fromCurrency']['name'] == 'USD' and el['toCurrency']['name'] == 'RUB':
-            res['dol'] = {'prod': str(el['buy']), 'pokup': str(el['sell'])}
-        elif el['fromCurrency']['name'] == 'EUR' and el['toCurrency']['name'] == 'RUB':
-            res['evr'] = {'prod': str(el['buy']), 'pokup': str(el['sell'])}
-        elif el['fromCurrency']['name'] == 'GBP' and el['toCurrency']['name'] == 'RUB':
-            res['funt'] = {'prod': str(el['buy']), 'pokup': str(el['sell'])}
-
+    try:
+        for el in DebitCardsTransfers:
+            if el['fromCurrency']['name'] == 'USD' and el['toCurrency']['name'] == 'RUB':
+                res['dol'] = {'prod': str(el['buy']), 'pokup': str(el['sell'])}
+            elif el['fromCurrency']['name'] == 'EUR' and el['toCurrency']['name'] == 'RUB':
+                res['evr'] = {'prod': str(el['buy']), 'pokup': str(el['sell'])}
+            elif el['fromCurrency']['name'] == 'GBP' and el['toCurrency']['name'] == 'RUB':
+                res['funt'] = {'prod': str(el['buy']), 'pokup': str(el['sell'])}
+    except Exception as e:
+        log("Error in get_last_ones" + str(e))
+        return None
     return res
 
 
-def getit(now_str):
-    now = datetime.today()
-    csv_name = os.path.join(DATA_DIR, "data_" + str(now.year) + "_" + str(now.month) + ".csv")
-    resp = get_last_ones()
-    if not os.path.isdir(DATA_DIR):
-        os.mkdir(DATA_DIR)
-    if not os.path.exists(csv_name):
-        with open(csv_name, 'w') as initfile:
-            initfile.write("date;pokup_dol;pokup_evr;pokup_funt;prod_dol;prod_evr;prod_funt\n")
-    with open(csv_name, 'a') as wfile:
-        wfile.write(now_str + ";" + resp['dol']['pokup'] + ";" + resp['evr']['pokup'] + ";" + resp['funt']['pokup'] + \
-                    ";" + resp['dol']['prod'] + ";" + resp['evr']['prod'] + ";" + resp['funt']['prod'] + "\n")
+def decorate_last_ones():
+    currencies = ['dol', 'evr', 'funt']
+    spreads = {'dol': 0.01,
+               'evr': 0.01,
+               'funt': 0.016}
+    r = get_last_ones()
+    if r:
+        mean_dol = (float(r['dol']['pokup']) + float(r['dol']['prod'])) / 2
+        dif_dol = (float(r['dol']['pokup']) - float(r['dol']['prod']))
+        spread_dol = dif_dol / mean_dol
+        is_night = spread_dol > 0.03
+        for curr in currencies:
+            mean = (float(r[curr]['pokup']) + float(r[curr]['prod'])) / 2 if is_night else None
+            r[curr]['prod_n'] = str(round(mean - (mean * spreads[curr] / 2), 2)) if is_night else None
+            r[curr]['pokup_n'] = str(round(mean + (mean * spreads[curr] / 2), 2)) if is_night else None
+        return r
+    else:
+        return None
