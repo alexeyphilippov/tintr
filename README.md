@@ -8,6 +8,7 @@ pip install virtualenv
 virtualenv env
 source env/bin/activate
 alias pip=`pwd`/env/bin/pip3.7
+alias python=`pwd`/env/bin/puyhon3.7
 pip install -r requirements.txt
 ```
 

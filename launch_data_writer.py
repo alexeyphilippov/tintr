@@ -11,4 +11,5 @@ while True:
         write_last(now_str=now)
     except Exception as e:
         log("Exception in launch_data_writer " + str(e))
+        continue
     time.sleep(MAX_SECS)
